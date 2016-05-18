@@ -1,0 +1,58 @@
+'''Clean names from fasta alignments in order to concatenate alignments properly '''
+''' ipython '''
+
+from Bio import SeqIO
+from Bio.SeqRecord import SeqRecord
+import re
+
+# input files
+input_folder = "01_aligned_genes_step3"
+output_folder = "01_aligned_genes_step4"
+
+alignments_raw = !ls {input_folder + "/*.trimal.fasta"}
+
+
+def renamer (alignment):
+	new_aln = []
+	for seq_record in SeqIO.parse(alignment, "fasta"):
+
+		# Exclude species not in the tree:
+		if re.search ('Helicosporidium_sp', str(seq_record.id)) == None:
+			if re.search ('Trentepohlia_annulata', str(seq_record.id)) == None:
+				if re.search ('Codium_decorticatum', str(seq_record.id)) == None:
+					if re.search ('Cephaleuros_parasiticus', str(seq_record.id)) == None:
+						if re.search ('Euglena_longa_2', str(seq_record.id)) == None:
+
+						# rename weird seqs ids 
+							short_id = re.split("\|", seq_record.id) # get rid of everything after vertical bar
+							short_id = short_id[0].replace(".", "") # get rid of dots after sp.
+							short_id = short_id.replace ("_'Chlorella'", "")
+							short_id = short_id.replace ("_subellipsoidea_C-169", "") # coccomixia
+							short_id = short_id.replace ("_carteri_f_nagariensis", "") # volvox
+							short_id = short_id.replace ("_Chlorella_sorokiniana_chloroplast", "") # 
+							short_id = short_id.replace ("_A_new_nucleotide_sequence_entered_manually", "")
+							short_id = short_id.replace ("Chattonella_marina_var", "Chattonella_marina")
+							short_id = short_id.replace ("Lepidodinium_plDNA", "Lepidodinium_")
+							short_id = short_id.replace ("Lepidodinium_", "Lepidodinium")
+							short_id = short_id.replace ("Tetraselmis_chuii", "Tetraselmis_sp")
+							short_id = short_id.replace ("Tetraselmis_suecica", "Tetraselmis_sp")
+							seq_record.id = str(short_id)
+							seq_record.description = ""
+							new_aln.append(seq_record)
+
+	SeqIO.write(new_aln, str(alignment + ".renamed.fasta"), "fasta")
+
+# do it
+for aln in alignments_raw:
+	renamer (aln)
+
+# clean up
+!mkdir {output_folder}
+alignments_renamed = !ls {input_folder + "/*.renamed.fasta"}
+for i in alignments_renamed:
+	!mv {i} {output_folder}
+
+print ""
+print "Done!!"
+
+

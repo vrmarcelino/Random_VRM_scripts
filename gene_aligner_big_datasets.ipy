@@ -1,0 +1,73 @@
+''' Makes gene alignments from folder containing unaligned genes'''
+''' For small datasets, where you should check start and stop codon positions of everything '''
+'''   better use s01_gene_aligner.ipy. This script uses translatorX.pl '''
+
+
+''' USAGE: ipython -- s01_gene_aligner.ipy -i 00_genome_in -o output_folder -t 16 -a aa'''
+
+''' Note: edited to run with Chris samples (starting from unaligned genes folder) '''
+
+
+''' mac verison - 11 May 2016 '''
+
+# Import stuff
+from Bio import SeqIO
+from Bio.SeqRecord import SeqRecord
+from Bio.Seq import Seq
+#import regex
+import re
+from Bio.Phylo.PAML import baseml
+from argparse import ArgumentParser
+import glob
+
+
+# Define input and output variables:
+parser = ArgumentParser()
+parser.add_argument('-i', '--input_folder', help='The path to the folder containing the genome fasta files', required=True)
+parser.add_argument('-o', '--output_folder', help='The name of an output folder', required=True)
+#parser.add_argument('-t', '--threads', help='The number of threads to run mafft', required=True)
+#parser.add_argument('-a', '--nt_or_aa', help='Alignment based on aminoacids (aa) or nucleotides (nt)', required=True)
+
+
+args = parser.parse_args()
+input_folder = args.input_folder
+output_folder = args.output_folder
+n_threads = int(args.threads)
+nt_or_aa = str(args.nt_or_aa)
+
+#input_folder = "00_unaligned_genes"
+#output_folder = "01_aligned_genes"
+
+#n_threads = 1
+#nt_or_aa = "aa" # alignment based on nt or aminoacids seqs 
+
+
+# read files and store the file path of each sample
+!ls {input_folder}/*.fasta > species_to_be_analysed.txt
+with open("species_to_be_analysed.txt") as file:
+	each_sp_fp = str('\n'.join(file.readlines()[:]))
+	each_sp_fp = each_sp_fp.split('\n\n')
+	each_sp_fp[-1] = each_sp_fp[-1].translate(None, "\n") # remove last \n
+
+step_1_folder = output_folder+"_step1"
+step_2_folder = output_folder+"_step2"
+!mkdir {step_1_folder}
+!mkdir {step_2_folder}
+
+
+### align and translate using translatorX
+for alga in each_sp_fp:
+	parts = re.split('\W+', alga)
+	output_gene_folder = step_1_folder + "/" + str(parts[1])
+	!perl translatorX_vLocal.pl -i {alga} -o {output_gene_folder} -p F -c 11 -t T
+# add --leavegappyregion to renove the excess of gaps
+
+
+# Clean up alignments using trimAl
+alns_path = str(step_1_folder) + "/*.nt_ali.fasta"
+for aln in glob.glob(alns_path):
+	!trimal -in {aln} -out {aln + ".trimal.fasta"} -resoverlap 0.70 -seqoverlap 70
+
+### Done!
+### Now check reading frame and misaligned seqs in Geneius.
+

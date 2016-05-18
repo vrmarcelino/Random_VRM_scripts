@@ -1,0 +1,134 @@
+''' Delete stop codons at the end of sequences in a fasta file '''
+''' Then concatenate into gene classes '''
+''' mac verison - 16 May 2016 '''
+
+# Import stuff
+from Bio import SeqIO
+from Bio.SeqRecord import SeqRecord
+from Bio.Seq import Seq
+#import regex
+import re
+from Bio.Phylo.PAML import baseml
+from argparse import ArgumentParser
+import glob
+
+
+# Define input and output variables:
+parser = ArgumentParser()
+parser.add_argument('-i', '--input_folder', help='The path to the folder containing the genome fasta files', required=True)
+parser.add_argument('-o', '--output_folder', help='The name of an output folder', required=True)
+#parser.add_argument('-t', '--threads', help='The number of threads to run mafft', required=True)
+#parser.add_argument('-a', '--nt_or_aa', help='Alignment based on aminoacids (aa) or nucleotides (nt)', required=True)
+
+
+args = parser.parse_args()
+input_folder = args.input_folder
+output_folder = args.output_folder
+
+# comment later
+input_folder = "01_aligned_genes_step4"
+output_folder = "01_aligned_genes_step5"
+
+
+# read files and store the file path of each sample
+each_sp_fp = !ls {input_folder}/*.fasta 
+
+# Stop codons table 11:
+stop_cod = ['TAA', 'TAG', 'TGA']
+
+# Because stop codon, in a alignment, is not always in the last position (lots of "----")
+def find_last_base_pos (seq):
+	global last_base_pos # last base that is not "-"
+	global stop_cod_init # start of the last codon
+
+	counter = 0
+	for base in seq[::-1]:
+		if str(base) != '-':
+			last_base_pos = -counter
+			stop_cod_init = -counter - 3
+			return last_base_pos
+			return stop_cod_init
+			break
+		else:
+			counter = counter + 1
+
+
+# function to delete stop codons
+def stop_deleter (alignment):
+	new_aln = []
+	print "processing %s" %(alignment)
+	for seq_record in SeqIO.parse(alignment, "fasta"):
+
+		find_last_base_pos(seq_record.seq)
+		if int(last_base_pos) == 0:
+			last_codon = seq_record.seq[stop_cod_init:]
+		else:
+			last_codon = seq_record.seq[stop_cod_init:last_base_pos]
+
+		if str(last_codon) in stop_cod:
+			seq_record.seq = seq_record.seq.tomutable()
+			if int(last_base_pos) == 0:
+				seq_record.seq[stop_cod_init:] = '---'
+			else:
+				seq_record.seq[stop_cod_init:last_base_pos] = '---'
+			new_aln.append(seq_record)
+		else:
+			new_aln.append(seq_record)
+
+	SeqIO.write(new_aln, str(alignment + ".NoStops.fasta"), "fasta")
+
+
+
+# Run it:
+for each_file in each_sp_fp:
+	stop_deleter (each_file)
+
+# Move files to the other folder:
+!mkdir {output_folder}
+alignments_wo_stops = !ls {input_folder + "/*.NoStops.fasta"}
+for i in alignments_wo_stops:
+	!mv {i} {output_folder} 
+
+print "Stop codons removed"
+
+### Concatenate based on gene classes:
+# Folders should be made...
+# Files that are not concatenated:
+!cp 01_aligned_genes_step5/accD.nt_ali.fasta.trimal.fasta.renamed.fasta.NoStops.fasta 02_GeneClasses/accD/alignment.fas
+!cp 01_aligned_genes_step5/ccsA.nt_ali.fasta.trimal.fasta.renamed.fasta.NoStops.fasta 02_GeneClasses/ccsA/alignment.fas
+!cp 01_aligned_genes_step5/cemA.nt_ali.fasta.trimal.fasta.renamed.fasta.NoStops.fasta 02_GeneClasses/cemA/alignment.fas
+!cp 01_aligned_genes_step5/clpP.nt_ali.fasta.trimal.fasta.renamed.fasta.NoStops.fasta 02_GeneClasses/clpP/alignment.fas
+!cp 01_aligned_genes_step5/infA.nt_ali.fasta.trimal.fasta.renamed.fasta.NoStops.fasta 02_GeneClasses/infA/alignment.fas
+!cp 01_aligned_genes_step5/minD.nt_ali.fasta.trimal.fasta.renamed.fasta.NoStops.fasta 02_GeneClasses/minD/alignment.fas
+!cp 01_aligned_genes_step5/rbcL.nt_ali.fasta.trimal.fasta.renamed.fasta.NoStops.fasta 02_GeneClasses/rbcL/alignment.fas
+!cp 01_aligned_genes_step5/tufA.nt_ali.fasta.trimal.fasta.renamed.fasta.NoStops.fasta 02_GeneClasses/tufA/alignment.fas
+
+#concatenate gene classes:
+!concatenate_alignments.pl 01_aligned_genes_step5/atp*
+!mv concatenated.* 02_GeneClasses/atp/
+
+!concatenate_alignments.pl 01_aligned_genes_step5/chl*
+!mv concatenated.* 02_GeneClasses/chl/
+
+!concatenate_alignments.pl 01_aligned_genes_step5/cys*
+!mv concatenated.* 02_GeneClasses/cys/
+
+!concatenate_alignments.pl 01_aligned_genes_step5/pet*
+!mv concatenated.* 02_GeneClasses/pet/
+
+!concatenate_alignments.pl 01_aligned_genes_step5/psa*
+!mv concatenated.* 02_GeneClasses/psa/
+
+!concatenate_alignments.pl 01_aligned_genes_step5/psb*
+!mv concatenated.* 02_GeneClasses/psb/
+
+!concatenate_alignments.pl 01_aligned_genes_step5/rpl*
+!mv concatenated.* 02_GeneClasses/rpl/
+
+!concatenate_alignments.pl 01_aligned_genes_step5/rps*
+!mv concatenated.* 02_GeneClasses/rps/
+
+#rename them all:
+!cd 02_GeneClasses
+!for d in */; do (cd "$d" && mv concatenated.fas alignment.fas); done
+

@@ -1,0 +1,59 @@
+# Run baseml for all genes - Part 1
+# Delete alignments without Ostreobium or with less than X sequences
+
+
+# load packages
+from Bio import SeqIO
+from Bio.SeqRecord import SeqRecord
+from ete2 import Tree
+
+
+# input files
+input_folder = "all_genes"
+input_tree = "00_tree.txt"
+control_file = "00_baseml_control.ctl"
+min_sequences = 4
+
+
+
+# function to detect bad alignments (no Ostreobium, repeated seqs, or less than 4 species)
+def quality_control(aln):
+	test = !grep "Ostreobium" {aln}
+	if test != []: # check if Ostreobium is there
+		seqs_counter = 0
+		seqs_ids = []
+
+		for seq_record in SeqIO.parse(aln, "fasta"):
+			seqs_counter += 1
+			if seq_record.id in seqs_ids:
+				print "check duplicated record in alignment %s" % (aln)
+			else:
+				seqs_ids.append(seq_record.id)
+
+		if seqs_counter < min_sequences:
+			print "Not enough seqs, only %i species in %s alignment" % (seqs_counter, aln)
+
+		else:
+			QC = "passed_qc"
+			print "%s alignment is OK!" % (aln)
+			return QC
+
+	else:
+		print "No Ostreobium in %s alignment" % (aln)
+
+
+# Get good alignments and send to a different folder:
+files_to_sort = !ls {input_folder}
+for aln in files_to_sort:
+	file_path = str(input_folder + "/" + aln)
+
+	check = quality_control(file_path) # run QC function
+	if check == 'passed_qc':
+		new_dir_name = aln.split('.fasta')
+		new_dir_name = new_dir_name[0]
+		!mkdir {new_dir_name}
+		new_name = new_dir_name + "/alignment.fas"
+		!mv {file_path} {new_name}
+
+print "Done!"
+print "Check alignments in geneious and proceed to part 2"

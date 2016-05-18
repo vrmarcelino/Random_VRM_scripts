@@ -1,0 +1,81 @@
+#Run baseml for all genes - Part 2
+# Delete alignments without Ostreobium or with less than X sequences
+
+
+# load packages
+from Bio import SeqIO
+from Bio.SeqRecord import SeqRecord
+from ete2 import Tree
+
+
+# input files
+input_folder = "all_genes"
+input_tree = "00_tree.txt"
+control_file = "00_baseml_control.ctl"
+min_sequences = 4
+
+# delete #1 from tree file
+!sed -i -- 's/ #1//g' 00_tree.txt # Can make it better?!
+
+# move tree and control file
+!for d in */; do cp 00_tree.txt "$d"; done
+!for d in */; do cp 00_baseml_control.ctl "$d"; done
+
+
+# file paths:
+folders = !ls -d */
+in_folder_path = input_folder + "/"
+folders.remove(in_folder_path)
+
+
+# Prune tree:
+
+for f in folders:
+	print f
+	file_path = f + "/alignment.fas"
+	tree_path = f + "/00_tree.txt"
+	sp_list = []
+	for seq_record in SeqIO.parse(file_path, "fasta"):
+		sp_list.append(seq_record.id)
+		print "parsing seq_record"
+
+	print "pruning tree"
+	t = Tree(tree_path)
+	t.prune(sp_list)
+
+	print "saving tree"
+	output_tree = str(f + "/00_tree.txt")
+	t.write(format=1, outfile=output_tree)
+
+
+
+
+# Add #1 in the tree:
+!for d in */; do (cd "$d" && sed -i 's/Ostreobium_quekettii_SAG699:0.263029/Ostreobium_quekettii_SAG699:0.263029 #1/g' 00_tree.txt); done
+print "Tree file replaced with pruned one"
+print ""
+
+
+# Run baseml in all folders
+!for d in */; do (cd "$d" && baseml 00_baseml_control.ctl); done
+
+### read resutls
+
+# extract rates for ostreobium
+!for d in */; do (cd "$d" && grep 'rates for branches' baseml_output > ostr_rate); done
+
+# add gene name to that file
+!for d in */; do (cd "$d" && pwd >> ostr_rate); done
+
+# cat everything
+!cat */ostr_rate >> all_rates.txt
+
+# Organize stuff (replace string with space)
+!sed -i 's\/media/disk1/clc/Vanessa/Ostreobium/03_Analysis/PAML/05_baseml_all_genes/\  \g' all_rates.txt
+
+
+
+print ""
+print "Done!"
+
+
