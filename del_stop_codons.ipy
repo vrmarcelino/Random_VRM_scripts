@@ -2,6 +2,11 @@
 ''' Then concatenate into gene classes '''
 ''' mac verison - 16 May 2016 '''
 
+''' Note for future work: HV says he could do all this in one line with perl, something like: '''
+''' $dna =~ s/TGA(\-*)$/---$1/; '''
+
+
+
 # Import stuff
 from Bio import SeqIO
 from Bio.SeqRecord import SeqRecord
