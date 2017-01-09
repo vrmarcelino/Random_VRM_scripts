@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 """
 Count reads for samples specified in a mapping file
-Usage: python count_reads.py -i UPA_5000sq.fastq -m map.txt -c Acidification_study_strict -w acidification
+Usage: python count_reads.py -i UPA_5000sq.fastq -t fastq -m map.txt -c Acidification_study_strict -w acidification
 
 Created on Jan 09 2015
 
@@ -16,9 +16,11 @@ from argparse import ArgumentParser
 
 parser = ArgumentParser()
 parser.add_argument('-i', '--fastq_input', help='The path to the input fastq file', required=True)
+parser.add_argument('-t', '--type', help='fastq or fasta', required=True)
 parser.add_argument('-m', '--map', help='The path to the mapping file', required=True)
 parser.add_argument('-c', '--column', help='The column to base the counts', required=True)
 parser.add_argument('-w', '--wanted', help='The the identifier', required=True)
+
 
 
 args = parser.parse_args()
@@ -26,6 +28,7 @@ fastq_input = args.fastq_input
 mapping_file_input = args.map
 col = args.column
 ident = args.wanted
+f_type = args.type
 
 
 store_wanted_samples = []
@@ -38,7 +41,7 @@ for index,row in map_file.iterrows():
    
         
 counter = 0        
-for seq_record in SeqIO.parse(fastq_input , "fastq"):
+for seq_record in SeqIO.parse(fastq_input , f_type):
     sample_full =  seq_record.id.split("_")
     sample_ID = sample_full[0]
     if sample_ID in store_wanted_samples:
