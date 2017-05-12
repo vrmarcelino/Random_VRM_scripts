@@ -1,0 +1,101 @@
+''' Makes gene alignments from folder containing fasta file of CDSs'''
+
+''' USAGE: ipython -- gene_aligner.ipy -i 00_genome_in -o output_folder -t 16 -a aa'''
+
+
+
+'''mac verison - 04 May 2017 '''
+
+# Import stuff
+from Bio import SeqIO
+from Bio.SeqRecord import SeqRecord
+from Bio.Seq import Seq
+import re
+from Bio.Phylo.PAML import baseml
+from argparse import ArgumentParser
+
+
+# Define input and output variables:
+#parser = ArgumentParser()
+#parser.add_argument('-i', '--input_folder', help='The path to the folder containing the genome fasta files', required=True)
+#parser.add_argument('-o', '--output_folder', help='The name of an output folder', required=True)
+#parser.add_argument('-t', '--threads', help='The number of threads to run mafft', required=True)
+#parser.add_argument('-a', '--nt_or_aa', help='Alignment based on aminoacids (aa) or nucleotides (nt)', required=True)
+
+
+#args = parser.parse_args()
+#input_folder = args.input_folder
+#output_folder = args.output_folder
+#n_threads = int(args.threads)
+#nt_or_aa = str(args.nt_or_aa)
+
+# comment later
+input_folder = "00_CDS"
+output_folder = "01_Genes"
+#n_threads = 1
+#nt_or_aa = "aa" # alignment based on nt or aminoacids seqs 
+
+!mkdir {output_folder}
+unaligned_folder_nt = output_folder + "/" + "unaligned_genes_nt"
+aligned = output_folder
+!mkdir {unaligned_folder_nt}
+
+
+''' Step 1 - gene alignments '''
+
+# read files and store the file path of each sample
+!ls {input_folder}/*.fasta > species_to_be_analysed.txt
+
+with open("species_to_be_analysed.txt") as file:
+	each_sp_fp = str('\n'.join(file.readlines()[:]))
+	each_sp_fp = each_sp_fp.split('\n\n')
+	each_sp_fp[-1] = each_sp_fp[-1].translate(str.maketrans('','',"\n")) # remove last \n
+
+
+# function to separate genes:
+def gene_sorter (input_sample):
+	sample_name_fp = str(input_sample)
+	for seq_record in SeqIO.parse(input_sample, "fasta"):
+
+		# sort out species name
+		gene = seq_record.id
+		seq = str(seq_record.seq)
+
+		species_name = re.split('/|.fasta', sample_name_fp)
+		new_id = str(species_name[1]) # This varies 1 in running piece by piece and 2 when running whole script at once!!
+		newrec=SeqRecord(Seq(seq),id=(new_id),name="",description="")
+
+		# append seq to dictonary - existing genes in dict
+		if str(gene) in genes_dict:
+
+			sp_in_list = str(genes_dict[gene])
+			if new_id not in sp_in_list: # include only non-duplicated genes
+				genes_dict[gene].append(newrec)
+
+			else:
+				print ("%s gene duplication excluded." %(gene))
+				print ("")
+
+		else:
+			store_seqs = []
+			store_seqs.append(newrec)
+			genes_dict[gene] = store_seqs
+
+
+# Separate genes from all samples:
+genes_dict = {}
+for alga in each_sp_fp:
+	gene_sorter (alga)
+
+
+# Save pre-alignment files
+for i in genes_dict:
+	seq_list = genes_dict[i]
+	SeqIO.write(seq_list, unaligned_folder_nt + "/" + str(i) + ".fasta", "fasta")
+
+
+
+print ("")
+print ("Done!!!")
+print ("")
+
